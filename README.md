@@ -148,6 +148,22 @@ The integration tests start their own throwaway PostgreSQL container (Testcontai
 | `dotnet test` fails with Docker errors | Start Docker Desktop / the Docker daemon; the integration tests need it |
 | Order stays PENDING | Expected for up to 5 minutes. Use `WORKER_INTERVAL_SECONDS=30` for demos. |
 
+### Browsing the database
+
+PostgreSQL isn't published to the host by default; only the gateway is. To browse the data, start the stack with the optional tools file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d
+```
+
+| Tool | How |
+|---|---|
+| **pgAdmin** (web, nothing to install) | http://localhost:5050. The server "Orders DB" is pre-registered; password `orders_dev_password` |
+| **Any SQL client** (VS Code PostgreSQL extension, DBeaver, pgAdmin desktop) | Host `localhost`, port `5433`, database `orders`, user `orders`, password `orders_dev_password` |
+| **Terminal** (works without the tools file) | `docker compose exec postgres psql -U orders -d orders` |
+
+Both ports bind to `127.0.0.1` only. Data lives in the `pgdata` Docker volume and survives `docker compose down`; `docker compose down -v` deletes it.
+
 ### Configuration
 
 | Setting (env var, or `.env`; see `.env.example`) | Default | Meaning |

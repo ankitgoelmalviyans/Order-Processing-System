@@ -1,0 +1,30 @@
+# Optional developer tools: browse the orders database.
+# Not used by a plain "docker compose up", so the database stays private by default.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d
+#
+#   pgAdmin (web UI) : http://localhost:5050          (server "Orders DB" is pre-registered)
+#   Any SQL client   : localhost:5433  db=orders  user=orders  password=orders_dev_password
+#
+# Both ports bind to 127.0.0.1 only, so they are reachable from this machine and not from the network.
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      # Desktop mode: no pgAdmin login screen (local development only)
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - ./tools/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
