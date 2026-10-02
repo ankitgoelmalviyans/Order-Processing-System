@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch: # allows "Run workflow" from the Actions tab
+
+permissions:
+  contents: read
+  checks: write # lets the test reporter publish the "Test Results" check
 
 jobs:
   build-and-test:
@@ -21,16 +26,54 @@ jobs:
       - name: Build
         run: dotnet build --no-restore -c Release
 
-      # Integration tests start PostgreSQL with Testcontainers (Docker is available on GitHub runners).
+      # One run per test project so each gets its own .trx file (a shared default name is
+      # timestamp-based and can collide). Integration tests start PostgreSQL with Testcontainers.
       - name: Test
-        run: dotnet test --no-build -c Release --logger "trx" --results-directory TestResults
+        shell: bash
+        run: |
+          rc=0
+          for project in tests/*/*.csproj; do
+            name=$(basename "$project" .csproj)
+            dotnet test "$project" --no-build -c Release \
+              --logger "trx;LogFileName=$name.trx" \
+              --collect:"XPlat Code Coverage" \
+              --results-directory TestResults || rc=1
+          done
+          exit $rc
 
-      - name: Upload test results
-        if: always()
+      # Test results: every test grouped by project and class, with pass/fail and duration.
+      # Shown as the "Test Results" check on the commit and in the run summary.
+      - name: Publish test results
+        if: success() || failure()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: TestResults/*.trx
+          reporter: dotnet-trx
+
+      # Code coverage: merge the per-project reports, exclude generated EF migrations.
+      - name: Coverage report
+        if: success() || failure()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.3.11
+        with:
+          reports: TestResults/*/coverage.cobertura.xml
+          targetdir: coverage
+          reporttypes: HtmlInline;MarkdownSummaryGithub
+          classfilters: -OrderProcessing.Orders.Infrastructure.Persistence.Migrations.*
+
+      - name: Add coverage to run summary
+        if: success() || failure()
+        shell: bash
+        run: cat coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results and coverage report
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: TestResults
+          name: test-results-and-coverage
+          path: |
+            TestResults/*.trx
+            coverage
 
   end-to-end:
     runs-on: ubuntu-latest
@@ -44,10 +87,22 @@ jobs:
           WORKER_INTERVAL_SECONDS: "10"
 
       - name: Smoke test through the gateway
-        run: ./scripts/smoke-test.sh
+        shell: bash
+        run: ./scripts/smoke-test.sh | tee smoke-test.txt
         env:
           WAIT_FOR_WORKER: "1"
           WORKER_TIMEOUT_SECONDS: "60"
+
+      - name: Add smoke test to run summary
+        if: success() || failure()
+        shell: bash
+        run: |
+          {
+            echo "## End-to-end smoke test (docker compose, through the gateway)"
+            echo '```'
+            cat smoke-test.txt 2>/dev/null || echo "smoke test did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Service logs
         if: always()

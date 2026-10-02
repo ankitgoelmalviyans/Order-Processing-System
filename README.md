@@ -1,5 +1,9 @@
 # E-commerce Order Processing System
 
+[![CI](https://github.com/ankitgoelmalviyans/Order-Processing-System/actions/workflows/ci.yml/badge.svg)](https://github.com/ankitgoelmalviyans/Order-Processing-System/actions/workflows/ci.yml)
+
+Test results (every test, by project and class) and code coverage for each commit: open the latest [CI run](https://github.com/ankitgoelmalviyans/Order-Processing-System/actions/workflows/ci.yml), then its **Summary**.
+
 The backend for an e-commerce order processing system, built with **.NET 8** as two microservices behind an API gateway. One command starts everything:
 
 ```bash
