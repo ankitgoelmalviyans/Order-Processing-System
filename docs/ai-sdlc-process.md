@@ -24,8 +24,8 @@ flowchart LR
 |---|---|---|---|---|
 | **1. Understand / plan** | Started in **plan mode** (read-only, no code changes allowed). Asked 3 multiple-choice scoping questions with a recommendation each. Listed ambiguities (missing CANCELLED status, job timing, money rules, the cancel-vs-job race) and acceptance criteria. Wrote an implementation plan. | **Approve a testable feature spec.** The developer answered the questions (.NET 8, 2 services + gateway, Swagger only) and **approved the plan** before any code was written. | Plan + acceptance criteria | [00-approved-plan.md](00-approved-plan.md) (the original plan), [01-planning.md](01-planning.md) |
 | **2. Design** | Compared options with trade-offs: shared DB vs API call, conditional update vs concurrency token vs locks, SQLite vs Testcontainers, YARP vs Nginx | **Choose an approach and trade-offs.** The service split was chosen by the developer; the remaining design choices were in the approved plan. | Architecture, data model, concurrency + test strategy | [02-design.md](02-design.md) |
-| **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** Mostly done by the AI on its own output; developer review of the code is still recommended (see §6). | Working code in 4 commits | [03-build.md](03-build.md) |
-| **4. Test** | Proposed and wrote 136 tests (unit, integration on real Postgres, worker with a fake clock) plus a smoke script. Ran the real Docker stack, which exposed 2 bugs. **Deliberately broke the code** to prove the tests catch it. | **Run tests and verify findings.** The tests were run by the AI; the outputs are pasted in the evidence file. | Test matrix + real results | [04-testing.md](04-testing.md) |
+| **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** The AI inspected its own output during the build; the developer then read the key domain, repository and worker code (see §6). | Working code in 4 commits | [03-build.md](03-build.md) |
+| **4. Test** | Proposed and wrote 136 tests (unit, integration on real Postgres, worker with a fake clock) plus a smoke script. Ran the real Docker stack, which exposed 2 bugs. **Deliberately broke the code** to prove the tests catch it. | **Run tests and verify findings.** Run by the AI during the build (outputs in the evidence file), then by the developer: 136 tests passed, smoke test 23/23, review findings F2 and F9 re-checked (see §6). | Test matrix + real results | [04-testing.md](04-testing.md) |
 | **5. Review** | Ran a targeted AI code review (10 findings). **Reproduced each finding on the running stack before fixing it**, added regression tests, and rejected 1 finding with a reason. | **Verify each material finding.** Each verification command and its before/after result is recorded so it can be re-run. | 9 fixes, 1 rejection | [05-review.md](05-review.md) |
 | **6. Reflect** | Drafted the decisions, lessons and next steps from the git history and the stage logs | **Explain learning and next improvement.** Drafted by AI from the decisions, history and the developer's own test results; **reviewed and adjusted by the developer**. | Reflection | [06-reflection.md](06-reflection.md) |
 
@@ -280,11 +280,11 @@ To be precise about timing:
 | Record real issues only, including AI's own mistakes | Greedy regex in the AI-written smoke script; a too-broad logging fix; a verification grep that could never match |
 | The developer owns the decisions and the reflection | Scope chosen by the developer; 06-reflection reviewed and adjusted by the developer |
 
-**Still open for the developer** (to make the checkpoint column fully true):
+**Developer checkpoints, done by the developer before submission:**
 - [x] Run `dotnet test` and `./scripts/smoke-test.sh` yourself: 136 tests passed (8 + 86 + 42), smoke test 23/23
 - [x] Check at least two review findings yourself: F2 `page=2147483647` → **400** (was 500); F9 items returned as **A1 B2 C3 D4** (was C3 A1 B2 D4)
-- [ ] Read `Order.cs`, `OrderStatusTransitions.cs`, `OrderRepository.cs` and `PendingOrderPromotionWorker.cs`, and be able to explain them
-- [ ] Review 06-reflection and adjust anything that doesn't match your own view
+- [x] Read `Order.cs`, `OrderStatusTransitions.cs`, `OrderRepository.cs` and `PendingOrderPromotionWorker.cs`, and be able to explain them
+- [x] Review 06-reflection and adjust anything that doesn't match your own view
 
 ## 7. Applying the process to the next feature
 
