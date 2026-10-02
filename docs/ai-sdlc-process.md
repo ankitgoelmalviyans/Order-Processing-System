@@ -29,7 +29,185 @@ flowchart LR
 | **5. Review** | Ran a targeted AI code review (10 findings). **Reproduced each finding on the running stack before fixing it**, added regression tests, and rejected 1 finding with a reason. | **Verify each material finding.** Each verification command and its before/after result is recorded so it can be re-run. | 9 fixes, 1 rejection | [05-review.md](05-review.md) |
 | **6. Reflect** | Reconstructed decisions, rework and lessons from the git history and the stage logs | **Explain learning and next improvement.** **Must be written by the developer**; the AI version is a marked draft. | Draft reflection | [06-reflection.md](06-reflection.md) |
 
-## 3. How the evidence files were planned
+## 3. Files created in each phase
+
+This section lists which files each phase produced, taken from the git history (`git show --name-status <commit>`). `A` = added, `M` = modified. Generated EF `*.Designer.cs` files are omitted.
+
+**Overview**
+
+| Phase | Commit(s) | Repo files produced | Main output |
+|---|---|---|---|
+| 1. Understand / plan | none | **none** (plan mode is read-only) | Approved plan with the planned folder structure; later written up as `docs/01-planning.md` |
+| 2. Design | none | **none** (design lived in the approved plan) | Design decisions; later written up as `docs/02-design.md` |
+| 3. Build | `996b13a` → `f2130d7` → `0bcf052` → `e8e0d95` | 4 services + shared library + Docker | Working system |
+| 4. Test | same 4 commits (tests written with each layer) | 3 test projects + smoke script | 126 tests + 24 E2E checks (136 tests after the review's regression tests) |
+| 5. Review | `d118b51` | 14 modified + 1 new migration | 9 verified fixes + regression tests |
+| 6. Reflect / document | `4de1c03`, `6c9cc4c` | README, `docs/`, CI, sample requests | SDLC evidence + walkthrough |
+
+### Phase 1: Understand / plan (no repo files)
+
+Claude Code ran in **plan mode**, where it can only read files, so nothing was written to the repository. The output was a plan file kept by Claude Code outside the repo, approved by the developer. It contained the **planned folder structure**:
+
+```
+OrderProcessing.sln
+docker-compose.yml, .env.example, .gitignore, .editorconfig, README.md
+src/Gateway/OrderProcessing.Gateway/
+src/Services/Orders/OrderProcessing.Orders.Domain/
+src/Services/Orders/OrderProcessing.Orders.Application/
+src/Services/Orders/OrderProcessing.Orders.Infrastructure/
+src/Services/Orders/OrderProcessing.Orders.Api/
+src/Services/StatusWorker/OrderProcessing.StatusWorker/
+tests/OrderProcessing.Orders.UnitTests/
+tests/OrderProcessing.Orders.IntegrationTests/
+tests/OrderProcessing.StatusWorker.UnitTests/
+requests/orders.http, scripts/smoke-test.sh, .github/workflows/ci.yml
+docs/01-planning.md … docs/06-reflection.md
+```
+
+**Planned vs. actual:** everything planned was built. Added during the build:
+- `src/BuildingBlocks/`, to share the correlation-id and logging code between the gateway and the API;
+- `Directory.Build.props`, `Directory.Packages.props` and `global.json`, for shared build settings and pinned versions;
+- `.config/dotnet-tools.json`, the EF migrations tool;
+- two extra docs: `technical-walkthrough.md` and this file.
+
+### Phase 2: Design (no repo files)
+
+The design decisions (service split, worker → API call, concurrency token, Testcontainers, data model) were part of the approved plan. They first appear in the repo as **code** in Phase 3 (e.g. the state machine in `OrderStatusTransitions.cs`, the concurrency token in `OrderConfiguration.cs`) and as **text** in `docs/02-design.md` (Phase 6).
+
+### Phase 3: Build (with the tests of Phase 4 written alongside)
+
+**Step 3.1: scaffold + domain** (`996b13a`)
+
+```
+A  .gitignore  .dockerignore  .editorconfig  global.json
+A  Directory.Build.props                 shared compiler settings
+A  Directory.Packages.props              all NuGet versions in one place
+A  OrderProcessing.sln
+A  src/Services/Orders/OrderProcessing.Orders.Domain/
+     Order.cs  OrderItem.cs  OrderStatus.cs  OrderStatusTransitions.cs  Exceptions.cs  *.csproj
+A  tests/OrderProcessing.Orders.UnitTests/                                    ← Phase 4
+     Domain/OrderTests.cs  Domain/OrderStatusTransitionsTests.cs  *.csproj
+```
+Checkpoint: `dotnet test` gave 67 passed.
+
+**Step 3.2: Orders service, i.e. application + infrastructure + API** (`f2130d7`)
+
+```
+A  .config/dotnet-tools.json             dotnet-ef for migrations
+A  src/BuildingBlocks/OrderProcessing.BuildingBlocks/
+     CorrelationIdMiddleware.cs  LoggingExtensions.cs  *.csproj
+A  src/Services/Orders/OrderProcessing.Orders.Application/
+     OrderService.cs  Contracts.cs  Validators.cs  IOrderRepository.cs
+     Exceptions.cs  OrderProcessingOptions.cs  DependencyInjection.cs  *.csproj
+A  src/Services/Orders/OrderProcessing.Orders.Infrastructure/
+     Persistence/OrdersDbContext.cs  OrderConfiguration.cs  OrderRepository.cs
+     Persistence/DesignTimeDbContextFactory.cs
+     Persistence/Migrations/…_InitialCreate.cs  OrdersDbContextModelSnapshot.cs
+     DependencyInjection.cs  *.csproj
+A  src/Services/Orders/OrderProcessing.Orders.Api/
+     Program.cs  GlobalExceptionHandler.cs  appsettings.json  Properties/launchSettings.json
+     Controllers/OrdersController.cs  Controllers/InternalJobsController.cs  *.csproj
+A  tests/OrderProcessing.Orders.IntegrationTests/                             ← Phase 4
+     OrdersApiFactory.cs  OrdersApiTests.cs  ConcurrencyTests.cs  *.csproj
+M  OrderProcessing.sln
+```
+Checkpoint: 37 integration tests passed on real PostgreSQL.
+
+**Step 3.3: status worker** (`0bcf052`)
+
+```
+A  src/Services/StatusWorker/OrderProcessing.StatusWorker/
+     PendingOrderPromotionWorker.cs  OrdersApiClient.cs  WorkerOptions.cs
+     Program.cs  appsettings.json  *.csproj
+A  tests/OrderProcessing.StatusWorker.UnitTests/                              ← Phase 4
+     PendingOrderPromotionWorkerTests.cs  OrdersApiClientTests.cs  *.csproj
+A  tests/OrderProcessing.Orders.UnitTests/Application/                        ← Phase 4
+     OrderServiceTests.cs  ValidatorTests.cs
+M  Directory.Packages.props  OrderProcessing.sln  tests/…UnitTests.csproj
+```
+Checkpoint: 126 tests passed, then 2 deliberate code breaks to prove the tests catch them.
+
+**Step 3.4: gateway + Docker** (`e8e0d95`)
+
+```
+A  src/Gateway/OrderProcessing.Gateway/
+     Program.cs  appsettings.json (routing table)  Properties/launchSettings.json  Dockerfile  *.csproj
+A  src/Services/Orders/OrderProcessing.Orders.Api/Dockerfile
+A  src/Services/StatusWorker/OrderProcessing.StatusWorker/Dockerfile
+A  docker-compose.yml  .env.example
+A  scripts/smoke-test.sh                                                      ← Phase 4
+M  src/Services/Orders/OrderProcessing.Orders.Api/GlobalExceptionHandler.cs   fix found by smoke test
+M  src/Services/Orders/OrderProcessing.Orders.Api/appsettings.json            fix found by smoke test
+M  OrderProcessing.sln
+```
+Checkpoint: `docker compose up` → all healthy; smoke test 24/24 (after fixing the 2 issues it exposed).
+
+### Phase 4: Test (files created during Phase 3)
+
+The tests were written in the **same commit as the code they test**, so each build step was proven before the next one started:
+
+| Test file | Created in | Tests |
+|---|---|---|
+| `tests/OrderProcessing.Orders.UnitTests/Domain/*` | `996b13a` | Order rules, all 25 status transitions |
+| `tests/OrderProcessing.Orders.IntegrationTests/*` | `f2130d7` | All endpoints on real PostgreSQL, race conditions |
+| `tests/OrderProcessing.Orders.UnitTests/Application/*` | `0bcf052` | Service use cases, validators |
+| `tests/OrderProcessing.StatusWorker.UnitTests/*` | `0bcf052` | 5-minute schedule on a fake clock, HTTP client |
+| `scripts/smoke-test.sh` | `e8e0d95` | End-to-end through the real Docker stack |
+
+### Phase 5: Review (`d118b51`)
+
+Each file changed by a verified review finding (F1–F9; see [05-review.md](05-review.md)):
+
+```
+M  src/Services/Orders/OrderProcessing.Orders.Api/Program.cs                  F1 forwarded headers, F5 log filter
+M  src/Services/Orders/OrderProcessing.Orders.Api/GlobalExceptionHandler.cs   F4 413 mapping, F5, F6 fallback writer
+M  src/Services/Orders/OrderProcessing.Orders.Api/appsettings.json            F5 removed over-broad log setting
+M  src/BuildingBlocks/OrderProcessing.BuildingBlocks/LoggingExtensions.cs     F5 hook for the log filter
+M  src/Services/Orders/OrderProcessing.Orders.Application/Validators.cs       F2 page cap, F3 price cap
+M  src/Services/Orders/OrderProcessing.Orders.Application/Contracts.cs        F9 lineNumber in API
+M  src/Services/Orders/OrderProcessing.Orders.Domain/Order.cs                 F8 trimmed duplicate check, F9
+M  src/Services/Orders/OrderProcessing.Orders.Domain/OrderItem.cs             F9 LineNumber
+M  src/Services/Orders/OrderProcessing.Orders.Infrastructure/Persistence/OrderConfiguration.cs   F9
+A  src/Services/Orders/OrderProcessing.Orders.Infrastructure/Persistence/Migrations/…_AddOrderItemLineNumber.cs   F9
+M  …/Persistence/Migrations/OrdersDbContextModelSnapshot.cs                   F9
+M  src/Services/StatusWorker/OrderProcessing.StatusWorker/Program.cs          F7 timeouts
+M  tests/OrderProcessing.Orders.IntegrationTests/OrdersApiTests.cs            regression tests F1 F2 F3 F6 F9
+M  tests/OrderProcessing.Orders.UnitTests/Domain/OrderTests.cs                regression tests F8 F9
+M  tests/OrderProcessing.Orders.UnitTests/Application/ValidatorTests.cs       regression tests F2 F3
+```
+
+### Phase 6: Reflect and document (`4de1c03`, `6c9cc4c`)
+
+```
+A  README.md                              what it is, how to run, API, patterns, AI summary
+A  docs/01-planning.md … 06-reflection.md SDLC evidence, one file per stage
+A  docs/technical-walkthrough.md          how the code works
+A  docs/ai-sdlc-process.md                this file
+A  .github/workflows/ci.yml               CI: build + tests, then compose + smoke test
+A  requests/orders.http                   sample requests for the demo
+```
+
+### Which phase created each top-level folder
+
+```
+Order-Processing-System/
+├── .config/                  Phase 3.2  (migrations tool)
+├── .github/workflows/        Phase 6    (CI)
+├── docs/                     Phase 6    (evidence + walkthrough)
+├── requests/                 Phase 6    (demo requests)
+├── scripts/                  Phase 3.4 / 4  (smoke test)
+├── src/
+│   ├── BuildingBlocks/       Phase 3.2
+│   ├── Gateway/              Phase 3.4
+│   └── Services/
+│       ├── Orders/           Phase 3.1 (Domain), 3.2 (Application, Infrastructure, Api), 5 (fixes)
+│       └── StatusWorker/     Phase 3.3
+├── tests/                    Phase 4, written in 3.1–3.3; extended in 5 (regression tests)
+├── docker-compose.yml        Phase 3.4
+└── *.props, global.json, *.sln   Phase 3.1
+```
+
+## 4. How the evidence files were planned
 
 **Where the structure came from:** the second slide defines six files, one per stage, and its footer gives the logging rule: *"For important AI interactions: record context, suggestion, Accept / Modify / Reject decision and verification."*
 
@@ -56,7 +234,7 @@ The plan therefore fixed the same layout for every file:
 
 **What counts as "important":** an interaction gets a log row if it changed the design, if the AI output was wrong or modified, or if a decision needs defending in the walkthrough. Routine generation that was accepted unchanged and passed its tests isn't logged line by line.
 
-## 4. How the evidence files were created
+## 5. How the evidence files were created
 
 To be precise about timing:
 
@@ -64,7 +242,7 @@ To be precise about timing:
 2. **After the build was complete**, the six files were written in one pass from that material: `git log`, the saved command output, test results and review findings. Every number in them (test counts, coverage, smoke results) comes from a real run, and nothing was invented.
 3. **The slide asks for the files to be updated *while* building each feature.** That wasn't done: they were compiled at the end, and the five API features were built in one cycle rather than one loop per feature. [03-build.md](03-build.md) and [01-planning.md](01-planning.md) state this deviation.
 
-## 5. Rules applied to AI output
+## 6. Rules applied to AI output
 
 | Rule | Example from this project |
 |---|---|
@@ -79,7 +257,7 @@ To be precise about timing:
 - [ ] Read `Order.cs`, `OrderStatusTransitions.cs`, `OrderRepository.cs` and `PendingOrderPromotionWorker.cs`, and be able to explain them
 - [ ] Rewrite 06-reflection in your own words
 
-## 6. Applying the process to the next feature
+## 7. Applying the process to the next feature
 
 To follow the slide exactly for any new feature (e.g. an `Idempotency-Key` on create), run one full loop and **update the files as you go**:
 
