@@ -281,8 +281,8 @@ To be precise about timing:
 | The developer owns the decisions and the reflection | Scope chosen by the developer; 06-reflection is marked for rewriting in the developer's own words |
 
 **Still open for the developer** (to make the checkpoint column fully true):
-- [ ] Run `dotnet test` and `./scripts/smoke-test.sh` yourself
-- [ ] Reproduce at least two review findings yourself (commands are in 05-review)
+- [x] Run `dotnet test` and `./scripts/smoke-test.sh` yourself: 136 tests passed (8 + 86 + 42), smoke test 23/23
+- [x] Check at least two review findings yourself: F2 `page=2147483647` → **400** (was 500); F9 items returned as **A1 B2 C3 D4** (was C3 A1 B2 D4)
 - [ ] Read `Order.cs`, `OrderStatusTransitions.cs`, `OrderRepository.cs` and `PendingOrderPromotionWorker.cs`, and be able to explain them
 - [ ] Rewrite 06-reflection in your own words
 
