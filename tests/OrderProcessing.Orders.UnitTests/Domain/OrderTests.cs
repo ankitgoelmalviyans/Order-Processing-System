@@ -62,6 +62,23 @@ public class OrderTests
     }
 
     [Fact]
+    public void Create_with_duplicate_product_ids_differing_only_by_whitespace_is_rejected()
+    {
+        // Review finding F8: the domain grouped untrimmed ids but stored trimmed ones.
+        var act = () => Order.Create("cust-1", [Item("SKU-1"), Item("SKU-1 ")], Now);
+
+        act.Should().Throw<InvalidOrderException>();
+    }
+
+    [Fact]
+    public void Create_numbers_lines_in_submission_order()
+    {
+        var order = Order.Create("cust-1", [Item("C"), Item("A"), Item("B")], Now);
+
+        order.Items.Select(i => (i.LineNumber, i.ProductId)).Should().Equal((1, "C"), (2, "A"), (3, "B"));
+    }
+
+    [Fact]
     public void Cancel_pending_order_succeeds_and_rotates_version()
     {
         var order = Order.Create("cust-1", [Item()], Now);

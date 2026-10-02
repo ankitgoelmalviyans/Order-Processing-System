@@ -16,6 +16,7 @@ public sealed record ListOrdersQuery(OrderStatus? Status = null, string? Custome
 
 public sealed record OrderItemResponse(
     Guid Id,
+    int LineNumber,
     string ProductId,
     string ProductName,
     int Quantity,
@@ -39,7 +40,7 @@ public sealed record OrderResponse(
         order.CreatedAt,
         order.UpdatedAt,
         order.Items
-            .Select(i => new OrderItemResponse(i.Id, i.ProductId, i.ProductName, i.Quantity, i.UnitPrice, i.LineTotal))
+            .Select(i => new OrderItemResponse(i.Id, i.LineNumber, i.ProductId, i.ProductName, i.Quantity, i.UnitPrice, i.LineTotal))
             .ToList());
 }
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using OrderProcessing.BuildingBlocks;
@@ -7,9 +8,13 @@ using OrderProcessing.Orders.Api;
 using OrderProcessing.Orders.Application;
 using OrderProcessing.Orders.Infrastructure;
 using Serilog;
+using Serilog.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddServiceLogging("orders-api");
+builder.AddServiceLogging("orders-api", logging => logging.Filter.ByExcluding(e =>
+    // Drop the framework's duplicate Error log for expected 4xx outcomes; real faults still get logged.
+    Matching.FromSource("Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware")(e)
+    && GlobalExceptionHandler.IsExpected(e.Exception)));
 
 var connectionString = builder.Configuration.GetConnectionString("OrdersDb")
     ?? throw new InvalidOperationException("Connection string 'OrdersDb' is not configured.");
@@ -47,8 +52,19 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddHealthChecks().AddNpgSql(connectionString, name: "postgres");
 
+// Behind the gateway the Host header is "orders-api:8080"; honour X-Forwarded-Host/Proto so generated
+// links (e.g. the Location header on 201) point at the public gateway address. The service publishes no
+// port and is reachable only from the private compose network, so headers from any proxy there are trusted.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseCorrelationId();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();

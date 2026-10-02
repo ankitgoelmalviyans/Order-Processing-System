@@ -29,7 +29,8 @@ public sealed class Order
     /// <summary>Optimistic concurrency token. Rotated on every change so concurrent writers are detected.</summary>
     public Guid Version { get; private set; }
 
-    public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
+    /// <summary>Lines in the order they were placed (EF does not guarantee load order, so sort by line number).</summary>
+    public IReadOnlyCollection<OrderItem> Items => _items.OrderBy(i => i.LineNumber).ToList().AsReadOnly();
 
     public static Order Create(string customerId, IReadOnlyCollection<NewOrderItem> items, DateTimeOffset now)
     {
@@ -43,6 +44,11 @@ public sealed class Order
             throw new InvalidOrderException("An order must contain at least one item.");
         }
 
+        if (items.Any(i => string.IsNullOrWhiteSpace(i.ProductId) || string.IsNullOrWhiteSpace(i.ProductName)))
+        {
+            throw new InvalidOrderException("Every item needs a product id and a product name.");
+        }
+
         if (items.Any(i => i.Quantity <= 0))
         {
             throw new InvalidOrderException("Item quantity must be greater than zero.");
@@ -53,7 +59,8 @@ public sealed class Order
             throw new InvalidOrderException("Item unit price must be greater than zero.");
         }
 
-        if (items.GroupBy(i => i.ProductId, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
+        // Compare trimmed ids: they are stored trimmed, so "SKU-1" and "SKU-1 " are the same product.
+        if (items.GroupBy(i => i.ProductId.Trim(), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
         {
             throw new InvalidOrderException("Each product may appear only once per order; combine the quantities instead.");
         }
@@ -68,9 +75,11 @@ public sealed class Order
             Version = Guid.NewGuid(),
         };
 
+        var lineNumber = 0;
         foreach (var item in items)
         {
-            order._items.Add(new OrderItem(item.ProductId.Trim(), item.ProductName.Trim(), item.Quantity, item.UnitPrice));
+            order._items.Add(new OrderItem(
+                ++lineNumber, item.ProductId.Trim(), item.ProductName.Trim(), item.Quantity, item.UnitPrice));
         }
 
         order.TotalAmount = order._items.Sum(i => i.LineTotal);

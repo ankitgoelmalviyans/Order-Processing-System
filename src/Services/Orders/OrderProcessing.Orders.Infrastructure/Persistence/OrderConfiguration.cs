@@ -29,6 +29,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             items.WithOwner().HasForeignKey("order_id");
             items.HasKey(i => i.Id);
             items.Property(i => i.Id).HasColumnName("id").ValueGeneratedNever();
+            items.Property(i => i.LineNumber).HasColumnName("line_number");
             items.Property(i => i.ProductId).HasColumnName("product_id").HasMaxLength(64).IsRequired();
             items.Property(i => i.ProductName).HasColumnName("product_name").HasMaxLength(200).IsRequired();
             items.Property(i => i.Quantity).HasColumnName("quantity");

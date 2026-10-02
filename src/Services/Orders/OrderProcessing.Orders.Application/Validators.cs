@@ -7,6 +7,10 @@ public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderR
     public const int MaxItemsPerOrder = 100;
     public const int MaxQuantityPerItem = 10_000;
 
+    // Keeps every possible total (100 items x 10,000 x 1,000,000 = 1e12) well inside numeric(18,2),
+    // so a valid request can never overflow the total_amount column.
+    public const decimal MaxUnitPrice = 1_000_000m;
+
     public CreateOrderRequestValidator()
     {
         RuleFor(r => r.CustomerId).NotEmpty().MaximumLength(64);
@@ -37,6 +41,7 @@ public sealed class CreateOrderItemRequestValidator : AbstractValidator<CreateOr
         RuleFor(i => i.Quantity).InclusiveBetween(1, CreateOrderRequestValidator.MaxQuantityPerItem);
         RuleFor(i => i.UnitPrice)
             .GreaterThan(0)
+            .LessThanOrEqualTo(CreateOrderRequestValidator.MaxUnitPrice)
             // Money is stored as numeric(18,2); reject values that would be silently rounded.
             .PrecisionScale(18, 2, ignoreTrailingZeros: true);
     }
@@ -54,12 +59,15 @@ public sealed class ListOrdersQueryValidator : AbstractValidator<ListOrdersQuery
 {
     public const int MaxPageSize = 100;
 
+    // (page - 1) * pageSize must fit in an int for the SQL OFFSET.
+    public const int MaxPage = int.MaxValue / MaxPageSize;
+
     public ListOrdersQueryValidator()
     {
         // Query-string binding accepts numbers for enums (e.g. ?status=7), so check the value is defined.
         RuleFor(q => q.Status).IsInEnum().When(q => q.Status.HasValue);
         RuleFor(q => q.CustomerId).MaximumLength(64);
-        RuleFor(q => q.Page).GreaterThanOrEqualTo(1);
+        RuleFor(q => q.Page).InclusiveBetween(1, MaxPage);
         RuleFor(q => q.PageSize).InclusiveBetween(1, MaxPageSize);
     }
 }

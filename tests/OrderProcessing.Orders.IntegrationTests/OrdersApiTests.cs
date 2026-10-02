@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using OrderProcessing.Orders.Application;
@@ -49,6 +50,53 @@ public sealed class OrdersApiTests(OrdersApiFactory factory)
     }
 
     [Fact]
+    public async Task Items_are_returned_in_the_order_they_were_placed()
+    {
+        // Review finding F9: EF does not guarantee owned-collection order; we saw C3 A1 B2 D4 for A1 B2 C3 D4.
+        string[] products = ["P-A1", "P-B2", "P-C3", "P-D4", "P-E5", "P-F6"];
+        var request = new CreateOrderRequest(NewCustomerId(),
+            products.Select(p => new CreateOrderItemRequest(p, p, 1, 1m)).ToList());
+        var created = await (await _client.PostJsonAsync("/api/orders", request)).ReadAsync<OrderResponse>();
+
+        var fetched = await (await _client.GetAsync($"/api/orders/{created.Id}")).ReadAsync<OrderResponse>();
+
+        fetched.Items.Select(i => i.ProductId).Should().Equal(products);
+        fetched.Items.Select(i => i.LineNumber).Should().Equal(1, 2, 3, 4, 5, 6);
+    }
+
+    [Fact]
+    public async Task Location_header_uses_the_forwarded_public_host()
+    {
+        // Review finding F1: behind the gateway Location pointed at http://orders-api:8080/...
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/orders")
+        {
+            Content = JsonContent.Create(
+                new CreateOrderRequest(NewCustomerId(), [new CreateOrderItemRequest("SKU-1", "Widget", 1, 1m)]),
+                options: OrdersApiFactory.Json),
+        };
+        request.Headers.Add("X-Forwarded-Host", "shop.example.com");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+
+        var response = await _client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location!.GetLeftPart(UriPartial.Authority).Should().Be("https://shop.example.com");
+    }
+
+    [Fact]
+    public async Task Not_found_is_still_404_when_client_does_not_accept_json()
+    {
+        // Review finding F6: with "Accept: text/plain" the ProblemDetails writer declined and the 404 became a 500.
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/orders/{Guid.NewGuid()}");
+        request.Headers.Accept.ParseAdd("text/plain");
+
+        var response = await _client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await response.ReadAsync<ProblemDetails>()).Title.Should().Be("Order not found");
+    }
+
+    [Fact]
     public async Task Get_unknown_order_returns_404_problem_details()
     {
         var response = await _client.GetAsync($"/api/orders/{Guid.NewGuid()}");
@@ -69,6 +117,8 @@ public sealed class OrdersApiTests(OrdersApiFactory factory)
     [InlineData("""{"customerId":"c1","items":[{"productId":"","productName":"A","quantity":1,"unitPrice":1}]}""", "Items[0].ProductId")]
     [InlineData("""{"customerId":"c1","items":[{"productId":"A","productName":"A","quantity":1,"unitPrice":1},{"productId":"a","productName":"B","quantity":1,"unitPrice":1}]}""", "Items")]
     [InlineData("""{"customerId":"c1","items":[null]}""", "Items[0]")]
+    // Review finding F3: 10 x 9,999,999,999,999,999.99 overflowed numeric(18,2) and returned 500.
+    [InlineData("""{"customerId":"c1","items":[{"productId":"A","productName":"A","quantity":10,"unitPrice":9999999999999999.99}]}""", "Items[0].UnitPrice")]
     public async Task Create_with_invalid_payload_returns_400_with_field_errors(string json, string expectedErrorKey)
     {
         var response = await _client.PostAsync("/api/orders", new StringContent(json, Encoding.UTF8, "application/json"));
@@ -138,6 +188,7 @@ public sealed class OrdersApiTests(OrdersApiFactory factory)
     [InlineData("page=0")]
     [InlineData("pageSize=0")]
     [InlineData("pageSize=101")]
+    [InlineData("page=2147483647&pageSize=100")] // review finding F2: OFFSET overflow used to return 500
     public async Task List_with_invalid_query_returns_400(string query)
     {
         var response = await _client.GetAsync($"/api/orders?{query}");

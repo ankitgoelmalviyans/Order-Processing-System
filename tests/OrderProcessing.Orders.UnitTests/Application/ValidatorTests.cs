@@ -47,6 +47,30 @@ public class ValidatorTests
     }
 
     [Fact]
+    public void Price_above_maximum_fails_so_totals_cannot_overflow()
+    {
+        _create.TestValidate(new CreateOrderRequest("cust-1", [Item(unitPrice: CreateOrderRequestValidator.MaxUnitPrice + 0.01m)]))
+            .ShouldHaveValidationErrorFor("Items[0].UnitPrice");
+    }
+
+    [Fact]
+    public void Worst_case_valid_order_total_fits_numeric_18_2()
+    {
+        var worstCase = CreateOrderRequestValidator.MaxItemsPerOrder
+            * CreateOrderRequestValidator.MaxQuantityPerItem
+            * CreateOrderRequestValidator.MaxUnitPrice;
+
+        worstCase.Should().BeLessThan(10_000_000_000_000_000m); // 16 integer digits
+    }
+
+    [Fact]
+    public void Page_that_would_overflow_the_offset_fails()
+    {
+        _list.TestValidate(new ListOrdersQuery(Page: int.MaxValue, PageSize: 100)).ShouldHaveValidationErrorFor(q => q.Page);
+        _list.TestValidate(new ListOrdersQuery(Page: ListOrdersQueryValidator.MaxPage, PageSize: 100)).ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
     public void Duplicate_products_ignoring_case_and_whitespace_fail()
     {
         _create.TestValidate(new CreateOrderRequest("cust-1", [Item("sku-1"), Item(" SKU-1 ")]))

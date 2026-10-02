@@ -22,7 +22,14 @@ builder.Services
         http.BaseAddress = new Uri(services.GetRequiredService<IOptions<WorkerOptions>>().Value.OrdersApiBaseUrl))
     // Retries with exponential backoff, circuit breaker and timeouts. Retrying this POST is safe because
     // the promote endpoint is idempotent (UPDATE ... WHERE status = 'Pending').
-    .AddStandardResilienceHandler();
+    .AddStandardResilienceHandler(resilience =>
+    {
+        // The defaults (10 s per attempt, 30 s total) suit interactive calls. A big PENDING backlog can take
+        // longer, and a timed-out attempt aborts the request, which cancels and rolls back the UPDATE.
+        resilience.AttemptTimeout.Timeout = TimeSpan.FromSeconds(60);
+        resilience.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(3);
+        resilience.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2); // must be >= 2x attempt timeout
+    });
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostedService<PendingOrderPromotionWorker>();
