@@ -6,7 +6,12 @@ using OrderProcessing.Orders.Domain;
 
 namespace OrderProcessing.Orders.Api;
 
-/// <summary>Maps application/domain exceptions to RFC 7807 problem responses in one place.</summary>
+/// <summary>
+/// Maps application/domain exceptions to RFC 7807 problem responses in one place.
+/// Note: in .NET 8 the built-in ExceptionHandlerMiddleware logs every exception at Error level before this
+/// handler runs, so expected 404/409s looked like server failures. That category is silenced in appsettings.json
+/// and this handler owns the logging instead (Error + stack trace only for real 5xx).
+/// </summary>
 internal sealed class GlobalExceptionHandler(
     IProblemDetailsService problemDetailsService,
     ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
