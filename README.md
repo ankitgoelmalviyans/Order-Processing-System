@@ -18,6 +18,7 @@ Then open **http://localhost:8080/swagger**.
 | Cancel only while PENDING | `POST /api/orders/{id}/cancel` → `409` otherwise |
 
 **Documentation map**
+- **The plan approved before any code was written** (the first commit): [docs/00-approved-plan.md](docs/00-approved-plan.md)
 - **How the code works** (folder structure, request flows, where each requirement lives, demo script, likely questions): [docs/technical-walkthrough.md](docs/technical-walkthrough.md)
 - **How AI was used across the SDLC**, and how the evidence files were planned and created: [docs/ai-sdlc-process.md](docs/ai-sdlc-process.md)
 - **How it was built**, one file per SDLC stage including how AI was used: [`docs/01-planning.md` … `06-reflection.md`](docs/). See [How AI was used](#how-ai-was-used).

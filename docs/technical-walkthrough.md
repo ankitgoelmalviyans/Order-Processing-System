@@ -16,7 +16,7 @@ A guide to the codebase for the coding walkthrough. It covers how the work was c
 | Step | What happened | Output |
 |---|---|---|
 | 1. Understand | Read the brief; AI asked 3 scoping questions (stack, service split, UI); developer chose .NET 8, 2 services + gateway, Swagger only | Scope ([01-planning](01-planning.md) §3) |
-| 2. Plan | AI listed ambiguities and acceptance criteria and wrote an implementation plan in *plan mode* (read-only); the developer approved it before any code was written | Acceptance criteria ([01-planning](01-planning.md) §4) |
+| 2. Plan | AI listed ambiguities and acceptance criteria and wrote an implementation plan in *plan mode* (read-only); the developer approved it before any code was written | [00-approved-plan](00-approved-plan.md) (root commit `bc542e3`), acceptance criteria ([01-planning](01-planning.md) §4) |
 | 3. Design | Architecture, data model, concurrency strategy and test strategy chosen, with trade-offs | [02-design](02-design.md) |
 | 4. Environment | Installed the .NET 8 SDK in WSL; confirmed Docker + Compose; `git init` | [03-build](03-build.md) §2 |
 | 5. Build, inside out | **Domain** (rules, no dependencies) → **Application** (use cases) → **Infrastructure** (database) → **API** → **Worker** → **Gateway** → **Docker** | Commits `996b13a` … `e8e0d95` |

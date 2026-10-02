@@ -22,9 +22,9 @@ flowchart LR
 
 | Stage | What the AI did | Developer checkpoint (from the slide) | What was produced | Evidence |
 |---|---|---|---|---|
-| **1. Understand / plan** | Started in **plan mode** (read-only, no code changes allowed). Asked 3 multiple-choice scoping questions with a recommendation each. Listed ambiguities (missing CANCELLED status, job timing, money rules, the cancel-vs-job race) and acceptance criteria. Wrote an implementation plan. | **Approve a testable feature spec.** The developer answered the questions (.NET 8, 2 services + gateway, Swagger only) and **approved the plan** before any code was written. | Plan + acceptance criteria | [01-planning.md](01-planning.md) |
+| **1. Understand / plan** | Started in **plan mode** (read-only, no code changes allowed). Asked 3 multiple-choice scoping questions with a recommendation each. Listed ambiguities (missing CANCELLED status, job timing, money rules, the cancel-vs-job race) and acceptance criteria. Wrote an implementation plan. | **Approve a testable feature spec.** The developer answered the questions (.NET 8, 2 services + gateway, Swagger only) and **approved the plan** before any code was written. | Plan + acceptance criteria | [00-approved-plan.md](00-approved-plan.md) (the original plan), [01-planning.md](01-planning.md) |
 | **2. Design** | Compared options with trade-offs: shared DB vs API call, conditional update vs concurrency token vs locks, SQLite vs Testcontainers, YARP vs Nginx | **Choose an approach and trade-offs.** The service split was chosen by the developer; the remaining design choices were in the approved plan. | Architecture, data model, concurrency + test strategy | [02-design.md](02-design.md) |
-| **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** Mostly done by the AI on its own output; developer review of the code is still recommended (see §5). | Working code in 6 commits | [03-build.md](03-build.md) |
+| **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** Mostly done by the AI on its own output; developer review of the code is still recommended (see §5). | Working code in 4 commits | [03-build.md](03-build.md) |
 | **4. Test** | Proposed and wrote 136 tests (unit, integration on real Postgres, worker with a fake clock) plus a smoke script. Ran the real Docker stack, which exposed 2 bugs. **Deliberately broke the code** to prove the tests catch it. | **Run tests and verify findings.** The tests were run by the AI; the outputs are pasted in the evidence file. | Test matrix + real results | [04-testing.md](04-testing.md) |
 | **5. Review** | Ran a targeted AI code review (10 findings). **Reproduced each finding on the running stack before fixing it**, added regression tests, and rejected 1 finding with a reason. | **Verify each material finding.** Each verification command and its before/after result is recorded so it can be re-run. | 9 fixes, 1 rejection | [05-review.md](05-review.md) |
 | **6. Reflect** | Reconstructed decisions, rework and lessons from the git history and the stage logs | **Explain learning and next improvement.** **Must be written by the developer**; the AI version is a marked draft. | Draft reflection | [06-reflection.md](06-reflection.md) |
@@ -37,16 +37,24 @@ This section lists which files each phase produced, taken from the git history (
 
 | Phase | Commit(s) | Repo files produced | Main output |
 |---|---|---|---|
-| 1. Understand / plan | none | **none** (plan mode is read-only) | Approved plan with the planned folder structure; later written up as `docs/01-planning.md` |
-| 2. Design | none | **none** (design lived in the approved plan) | Design decisions; later written up as `docs/02-design.md` |
+| 1. Understand / plan | `bc542e3` (root commit) | `docs/00-approved-plan.md` | The approved plan: requirements, planned folder structure, design, build order, verification. Expanded later in `docs/01-planning.md` |
+| 2. Design | `bc542e3` (same plan) | none of its own; the design is part of the plan | Design decisions; expanded later in `docs/02-design.md` |
 | 3. Build | `996b13a` → `f2130d7` → `0bcf052` → `e8e0d95` | 4 services + shared library + Docker | Working system |
 | 4. Test | same 4 commits (tests written with each layer) | 3 test projects + smoke script | 126 tests + 24 E2E checks (136 tests after the review's regression tests) |
 | 5. Review | `d118b51` | 14 modified + 1 new migration | 9 verified fixes + regression tests |
 | 6. Reflect / document | `4de1c03`, `6c9cc4c` | README, `docs/`, CI, sample requests | SDLC evidence + walkthrough |
 
-### Phase 1: Understand / plan (no repo files)
+### Phase 1: Understand / plan (`bc542e3`)
 
-Claude Code ran in **plan mode**, where it can only read files, so nothing was written to the repository. The output was a plan file kept by Claude Code outside the repo, approved by the developer. It contained the **planned folder structure**:
+```
+A  docs/00-approved-plan.md              the plan, exactly as approved before any code
+```
+
+Claude Code ran in **plan mode**, where it can only read files, so it couldn't write to the repository. Its output was a plan file, kept by the tool outside the repo, which the developer approved at **08:58 UTC**, 21 minutes before the first code commit (09:19).
+
+The plan was later added to the repo **as the root commit**, with its author date set to when it was written. Its text is unchanged; only a header note explaining its origin was added. That's why the history starts with the plan, as the SDLC flow expects.
+
+The plan contained the **planned folder structure**:
 
 ```
 OrderProcessing.sln
@@ -70,9 +78,9 @@ docs/01-planning.md … docs/06-reflection.md
 - `.config/dotnet-tools.json`, the EF migrations tool;
 - two extra docs: `technical-walkthrough.md` and this file.
 
-### Phase 2: Design (no repo files)
+### Phase 2: Design (part of `bc542e3`)
 
-The design decisions (service split, worker → API call, concurrency token, Testcontainers, data model) were part of the approved plan. They first appear in the repo as **code** in Phase 3 (e.g. the state machine in `OrderStatusTransitions.cs`, the concurrency token in `OrderConfiguration.cs`) and as **text** in `docs/02-design.md` (Phase 6).
+The design decisions (service split, worker → API call, concurrency token, Testcontainers, data model) are in the approved plan: see the *Architecture*, *Domain and data model* and *Concurrency and job semantics* sections of [00-approved-plan.md](00-approved-plan.md). They then appear in the repo as **code** in Phase 3 (e.g. the state machine in `OrderStatusTransitions.cs`, the concurrency token in `OrderConfiguration.cs`) and as **text** in `docs/02-design.md` (Phase 6).
 
 ### Phase 3: Build (with the tests of Phase 4 written alongside)
 
@@ -193,7 +201,7 @@ A  requests/orders.http                   sample requests for the demo
 Order-Processing-System/
 ├── .config/                  Phase 3.2  (migrations tool)
 ├── .github/workflows/        Phase 6    (CI)
-├── docs/                     Phase 6    (evidence + walkthrough)
+├── docs/                     Phase 1 (approved plan), Phase 6 (evidence + walkthrough)
 ├── requests/                 Phase 6    (demo requests)
 ├── scripts/                  Phase 3.4 / 4  (smoke test)
 ├── src/
@@ -238,6 +246,7 @@ The plan therefore fixed the same layout for every file:
 
 To be precise about timing:
 
+0. **Before the build**, the plan was written and approved (08:58 UTC). It's in the repo, unchanged, as [00-approved-plan.md](00-approved-plan.md), the root commit `bc542e3`.
 1. **During the build**, every issue was recorded at the moment it happened: in commit messages (e.g. the review-fix commit lists F1–F10), in the test and terminal output, and in notes kept during the session.
 2. **After the build was complete**, the six files were written in one pass from that material: `git log`, the saved command output, test results and review findings. Every number in them (test counts, coverage, smoke results) comes from a real run, and nothing was invented.
 3. **The slide asks for the files to be updated *while* building each feature.** That wasn't done: they were compiled at the end, and the five API features were built in one cycle rather than one loop per feature. [03-build.md](03-build.md) and [01-planning.md](01-planning.md) state this deviation.

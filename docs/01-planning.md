@@ -2,6 +2,7 @@
 
 **Stage goal:** clarify requirements, edge cases and acceptance criteria, then approve a testable feature spec.
 **AI tool:** Claude Code (Claude Opus 5.5) in VS Code, plan mode (read-only until the plan was approved).
+**Original plan:** [00-approved-plan.md](00-approved-plan.md), approved at 08:58 UTC before any code (root commit `bc542e3`). This file expands on it.
 
 ## 1. Requirements as given
 
