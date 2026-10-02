@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  checks: write # lets the test reporter publish the "Test Results" check
 
 jobs:
   build-and-test:
@@ -41,15 +40,12 @@ jobs:
           done
           exit $rc
 
-      # Test results: every test grouped by project and class, with pass/fail and duration.
-      # Shown as the "Test Results" check on the commit and in the run summary.
-      - name: Publish test results
+      # Test report on the run's Summary page: a table per project, failures with their message,
+      # and every test grouped by class with outcome and duration (scripts/test-summary.py).
+      - name: Test report
         if: success() || failure()
-        uses: dorny/test-reporter@v1
-        with:
-          name: Test Results
-          path: TestResults/*.trx
-          reporter: dotnet-trx
+        shell: bash
+        run: python3 scripts/test-summary.py TestResults/*.trx >> "$GITHUB_STEP_SUMMARY"
 
       # Code coverage: merge the per-project reports, exclude generated EF migrations.
       - name: Coverage report

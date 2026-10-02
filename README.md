@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/ankitgoelmalviyans/Order-Processing-System/actions/workflows/ci.yml/badge.svg)](https://github.com/ankitgoelmalviyans/Order-Processing-System/actions/workflows/ci.yml)
 
-Test results (every test, by project and class) and code coverage for each commit: open the latest [CI run](https://github.com/ankitgoelmalviyans/Order-Processing-System/actions/workflows/ci.yml), then its **Summary**.
+Test results (every test, by project and class), code coverage and the Docker smoke test for each commit: open the latest [CI run](https://github.com/ankitgoelmalviyans/Order-Processing-System/actions/workflows/ci.yml), then its **Summary**.
 
 The backend for an e-commerce order processing system, built with **.NET 8** as two microservices behind an API gateway. One command starts everything:
 
@@ -79,7 +79,7 @@ Any other transition returns `409 Conflict`. CANCELLED isn't in the original sta
 | Run the smoke test | `bash` + `curl` (Linux, macOS, WSL or Git Bash on Windows) |
 
 ```bash
-git clone <repo-url> Order-Processing-System
+git clone https://github.com/ankitgoelmalviyans/Order-Processing-System.git
 cd Order-Processing-System
 ```
 
@@ -177,6 +177,8 @@ Both ports bind to `127.0.0.1` only. Data lives in the `pgdata` Docker volume an
 | `MIN_PENDING_AGE_SECONDS` | `0` | Only promote orders at least this old. Gives customers a guaranteed cancellation window. |
 | `GATEWAY_PORT` | `8080` | Host port for the gateway |
 | `POSTGRES_PASSWORD` | `orders_dev_password` | Database password (development only) |
+| `DB_PORT` | `5433` | Host port for PostgreSQL, only with `docker-compose.tools.yml` |
+| `PGADMIN_PORT` | `5050` | Host port for pgAdmin, only with `docker-compose.tools.yml` |
 
 ---
 
@@ -209,8 +211,8 @@ curl -X POST http://localhost:8080/api/orders -H 'Content-Type: application/json
   "customerId": "cust-1001",
   "status": "PENDING",
   "totalAmount": 138.99,
-  "createdAt": "2026-10-02T09:45:12.345+00:00",
-  "updatedAt": "2026-10-02T09:45:12.345+00:00",
+  "createdAt": "2026-10-02T09:45:12.3456789+00:00",
+  "updatedAt": "2026-10-02T09:45:12.3456789+00:00",
   "items": [
     { "id": "…", "lineNumber": 1, "productId": "SKU-KEYBOARD", "productName": "Mechanical keyboard", "quantity": 1, "unitPrice": 89.99, "lineTotal": 89.99 },
     { "id": "…", "lineNumber": 2, "productId": "SKU-MOUSE", "productName": "Wireless mouse", "quantity": 2, "unitPrice": 24.50, "lineTotal": 49.00 }
@@ -230,6 +232,8 @@ curl -X POST http://localhost:8080/api/orders -H 'Content-Type: application/json
 ## Project layout
 
 ```
+docker-compose.yml                                 the whole system: postgres, orders-api, status-worker, gateway
+docker-compose.tools.yml                           optional: PostgreSQL on localhost:5433 + pgAdmin on :5050
 src/
   Gateway/OrderProcessing.Gateway/                 YARP config-driven routes, correlation id
   BuildingBlocks/OrderProcessing.BuildingBlocks/   correlation-id middleware, Serilog setup (web services)
@@ -244,7 +248,17 @@ tests/
   OrderProcessing.Orders.IntegrationTests/         real API + real PostgreSQL (Testcontainers), race conditions
   OrderProcessing.StatusWorker.UnitTests/          schedule with FakeTimeProvider, HTTP client
 scripts/smoke-test.sh                              end-to-end checks against docker compose
-docs/01-planning.md … 06-reflection.md             SDLC evidence and AI usage log
+scripts/test-summary.py                            turns .trx test results into the CI run's test report
+requests/orders.http                               sample requests (VS Code REST Client, Rider, Visual Studio)
+tools/pgadmin/servers.json                         pre-registers the database in pgAdmin
+.github/workflows/ci.yml                           CI: build, tests, test report, coverage, Docker smoke test
+docs/
+  00-approved-plan.md                              the plan approved before any code (first commit)
+  01-planning.md … 06-reflection.md                SDLC evidence, one file per stage, with AI usage logs
+  ai-sdlc-process.md                               how AI was used per stage, and which files each phase produced
+  technical-walkthrough.md                         how the code works: request flows, requirement → code map
+Directory.Build.props, Directory.Packages.props    shared build settings and all NuGet versions in one place
+.gitattributes                                     LF line endings everywhere (scripts break with CRLF)
 ```
 
 ## Design patterns used
@@ -277,7 +291,13 @@ dotnet test                  # needs the .NET 8 SDK and Docker (for Testcontaine
 | StatusWorker.UnitTests | 8 | 5-minute schedule on `FakeTimeProvider` (no real waiting), recovery after a failed run, clean shutdown, HTTP contract |
 | `smoke-test.sh` | 23 (+1 with the worker wait) | The real Docker stack through the gateway, including `/internal` being blocked |
 
-GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the unit and integration tests, then brings up the compose stack and runs the smoke test. Details and real results: [docs/04-testing.md](docs/04-testing.md).
+**Continuous integration.** GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and pull request:
+1. builds and runs all tests (one `.trx` result file per test project);
+2. writes a test report ([`scripts/test-summary.py`](scripts/test-summary.py)): a table per project, any failures with their message, and every test grouped by class;
+3. merges code coverage from every test project (≈ 91 % line, 81 % branch);
+4. brings up the full Docker stack and runs the smoke test through the gateway.
+
+The test report, the coverage table and the smoke-test output all appear on the run's **Summary** page. The `.trx` files and the HTML coverage report can be downloaded as the run's `test-results-and-coverage` artifact. Details and real results: [docs/04-testing.md](docs/04-testing.md).
 
 ## How AI was used
 
@@ -285,7 +305,8 @@ AI (Claude Code, in VS Code) was used at every SDLC stage, as the slides describ
 
 | Stage | Evidence | Highlights |
 |---|---|---|
-| 1. Understand / plan | [01-planning.md](docs/01-planning.md) | Clarifying questions; ambiguities found (missing CANCELLED state, job semantics, money rules) |
+| Overview | [ai-sdlc-process.md](docs/ai-sdlc-process.md) | How AI was used per stage, the developer checkpoints, and which files each phase produced |
+| 1. Understand / plan | [00-approved-plan.md](docs/00-approved-plan.md), [01-planning.md](docs/01-planning.md) | The plan approved before any code; clarifying questions; ambiguities found (missing CANCELLED state, job semantics, money rules) |
 | 2. Design | [02-design.md](docs/02-design.md) | Options compared (shared DB vs API call, SQLite vs Testcontainers, …) and trade-offs chosen |
 | 3. Build | [03-build.md](docs/03-build.md) | AI output inspected; issues caught before and after running |
 | 4. Test | [04-testing.md](docs/04-testing.md) | Test matrix, mutation checks proving the tests can fail, smoke-test bugs |

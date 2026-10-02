@@ -33,8 +33,8 @@
 | Forwarded headers trust | `KnownNetworks`/`KnownProxies` are cleared, which is acceptable *only* because orders-api isn't reachable from outside. Restrict this to the gateway's network if that changes. |
 | Log injection | The correlation id is restricted to `[A-Za-z0-9-_.]` and ≤ 64 chars; otherwise it's replaced. |
 | Error leakage | 500 responses carry a generic message; details only go to the logs. |
-| Secrets | The Postgres password is a dev default, overridable via `.env` (git-ignored). Not production-grade. |
-| Containers | Run as the non-root `app` user on alpine images; only the gateway port is published. |
+| Secrets | The Postgres password is a dev default, overridable via `.env` (git-ignored). Not production-grade. The optional pgAdmin runs in desktop mode with no login: local development only. |
+| Containers | Run as the non-root `app` user on alpine images. By default only the gateway port is published. The optional `docker-compose.tools.yml` also publishes PostgreSQL and pgAdmin, bound to `127.0.0.1` only, so they're reachable from this machine but not from the network. |
 | AuthN/AuthZ | **Not implemented** (out of scope for the brief). Any caller can cancel any order. This is the first thing to add. |
 
 A dedicated `/security-review` run wasn't done: it reviews a pending branch diff, and this work was committed straight to `main`. The table above is a manual pass instead.

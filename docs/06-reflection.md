@@ -32,12 +32,17 @@ The first three decisions were mine, picked from the options the AI offered. The
 | Too-broad log suppression as a "fix" | AI review of its own earlier change | Quick fixes to cross-cutting config deserve a second look |
 | Item order assumed stable; `Location` behind a proxy; numeric overflow; `Accept` header edge case | AI review + reproduction | Green tests only cover what you thought of; run the real deployment shape |
 | A verification grep that could never match (`' ERR '`) | Result was "too good" | Be suspicious of "0 problems"; check that the check works |
+| Assumed `LogFileName={assembly}.trx` would expand in CI | Local dry run of the CI step before pushing | Don't trust a config option until you've seen its output |
+| A CI reporter that "succeeded" but published nothing | Checking GitHub's API for the result instead of trusting the green step | A green step only means the step didn't fail; verify the output exists |
+| Committed without checking the branch after VS Code switched it | Reading the `git log` output after the commit | Check the branch before every commit, especially when two tools share a repo |
 
 ## 4. Rework
 
 1. Logging of handled exceptions: **3 iterations** (noisy → silenced → targeted filter).
 2. Item ordering: added a `line_number` column with a **second migration**, rather than rewriting the first, as you would after a release.
 3. Smoke-test parsing rewritten once, and its assertions strengthened.
+4. Git history reorganised before publishing: the approved plan became the first commit, so the history reads plan → build → review → docs. Then repository hygiene for a Windows + WSL setup: `.gitattributes` and `core.filemode`.
+5. CI test reporting: **3 iterations** (`.trx` artifact only → third-party reporter, which published nothing visible → own summary script).
 
 ## 5. What I'd do next
 

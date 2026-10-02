@@ -64,16 +64,26 @@ X-Correlation-Id: demo-123
 [09:35:13 INF] orders-api demo-123 RequestLoggingMiddleware: HTTP GET /api/orders responded 200
 ```
 
-**Coverage** (`dotnet test --collect:"XPlat Code Coverage"`, line coverage per assembly from the suite that targets it):
+**Coverage.** Collected with `--collect:"XPlat Code Coverage"` from all three test projects, then merged with ReportGenerator (the same as CI does), with EF-generated migration code excluded:
 
-| Assembly | Line | Notes |
-|---|---|---|
-| Domain | 94.7 % | |
-| Application | 99.3 % | |
-| Api | 93.7 % | |
-| BuildingBlocks | 100 % | |
-| Infrastructure | 73.4 % | Uncovered lines are mostly EF-generated migration/designer code |
-| StatusWorker | 62.2 % | Uncovered lines are mostly `Program.cs` host bootstrap; worker logic is fully covered |
+| Assembly | Line | Branch | Notes |
+|---|---:|---:|---|
+| **Overall** | **90.7 %** | **81 %** | 439 of 484 coverable lines |
+| Domain | 98.7 % | 81.8 % | |
+| Application | 99.2 % | 92.8 % | |
+| Api | 95 % | 75 % | |
+| BuildingBlocks | 100 % | 75 % | |
+| Infrastructure | 90 % | 100 % | |
+| StatusWorker | 57.1 % | 87.5 % | The uncovered lines are mostly `Program.cs` host bootstrap; the worker loop and HTTP client are covered by unit tests, and the live service by the smoke test |
+
+**Continuous integration on GitHub** ([workflow](../.github/workflows/ci.yml)), on a clean machine:
+
+| Run | Commit | build-and-test | end-to-end |
+|---|---|---|---|
+| CI #1 | `dcf932b` | ✅ success (all tests) | ✅ success (stack healthy, smoke test incl. worker wait) |
+| CI #2 | `fad5287` | ✅ success | ✅ success |
+
+From the commit that adds `scripts/test-summary.py` onwards, each run's **Summary** page shows the test report (every test by project and class), the coverage table and the smoke-test output.
 
 ## 4. Do the tests actually catch bugs? (mutation checks)
 

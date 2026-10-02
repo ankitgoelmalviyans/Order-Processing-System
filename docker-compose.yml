@@ -4,6 +4,7 @@ name: order-processing
 #   Swagger UI : http://localhost:8080/swagger
 #   Health     : http://localhost:8080/health
 # Only the gateway publishes a host port; orders-api and postgres stay on the private network.
+# To browse the database, add the optional tools file (see docker-compose.tools.yml).
 
 x-dotnet-env: &dotnet-env
   DOTNET_ENVIRONMENT: Production

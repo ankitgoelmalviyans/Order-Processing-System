@@ -22,7 +22,8 @@ A guide to the codebase for the coding walkthrough. It covers how the work was c
 | 5. Build, inside out | **Domain** (rules, no dependencies) → **Application** (use cases) → **Infrastructure** (database) → **API** → **Worker** → **Gateway** → **Docker** | Commits `996b13a` … `e8e0d95` |
 | 6. Test at each layer | Unit tests with the domain; integration tests on real Postgres with the API; worker tests with a fake clock; smoke test on the real Docker stack | [04-testing](04-testing.md) |
 | 7. Review | AI code review; each finding reproduced on the running stack, then fixed with a regression test, or rejected | Commit `d118b51`, [05-review](05-review.md) |
-| 8. Document | README, SDLC files, this walkthrough, CI pipeline | Commit `4de1c03` |
+| 8. Document | README, SDLC files, this walkthrough, CI pipeline | Commits `4de1c03` … `a3330c7` |
+| 9. Publish | Pushed to GitHub; CI runs on every push: tests, test report, coverage, Docker smoke test | Commits `71cab66` onwards, [ai-sdlc-process](ai-sdlc-process.md) §3 Phase 7 |
 
 **Why inside out?** The domain holds the business rules and depends on nothing, so it can be built and tested first in milliseconds. Each outer layer then only adds wiring around rules that are already proven.
 
@@ -34,7 +35,9 @@ A guide to the codebase for the coding walkthrough. It covers how the work was c
 Order-Processing-System/
 │
 ├── docker-compose.yml          ← starts everything: postgres, orders-api, status-worker, gateway
+├── docker-compose.tools.yml    ← optional: PostgreSQL on 127.0.0.1:5433 + pgAdmin on :5050
 ├── .env.example                ← optional overrides (job interval, ports, password)
+├── .gitattributes              ← LF line endings everywhere (shell scripts break with CRLF)
 ├── OrderProcessing.sln         ← solution with all projects
 ├── global.json                 ← pins .NET SDK 8
 ├── Directory.Build.props       ← shared settings for every project (net8.0, nullable, warnings = errors)
@@ -59,10 +62,13 @@ Order-Processing-System/
 │   ├── OrderProcessing.Orders.IntegrationTests/   real API + real PostgreSQL (Testcontainers)
 │   └── OrderProcessing.StatusWorker.UnitTests/    worker with a fake clock
 │
-├── scripts/smoke-test.sh       ← end-to-end checks against the running Docker stack
+├── scripts/
+│   ├── smoke-test.sh           ← end-to-end checks against the running Docker stack
+│   └── test-summary.py         ← turns .trx test results into the CI run's test report
 ├── requests/orders.http        ← clickable sample requests (VS Code REST Client / Rider / VS)
-├── .github/workflows/ci.yml    ← CI: build + all tests, then compose + smoke test
-└── docs/                       ← SDLC evidence + this walkthrough
+├── tools/pgadmin/servers.json  ← pre-registers the database in pgAdmin (tools file only)
+├── .github/workflows/ci.yml    ← CI: build, tests, test report, coverage, then compose + smoke test
+└── docs/                       ← approved plan, SDLC evidence, AI process, this walkthrough
 ```
 
 ### Every source file, and what it is for
@@ -260,7 +266,7 @@ Controllers contain **no** try/catch. That keeps them to one line each.
 2. **postgres** starts. Its healthcheck `pg_isready` must pass first.
 3. **orders-api** starts only when postgres is *healthy*, applies EF migrations (creates or updates tables), then reports healthy on `/health` (which also checks the DB).
 4. **status-worker** and **gateway** start only when orders-api is *healthy*.
-5. Only the gateway's port `8080` is published. Postgres and orders-api are reachable only on the private Docker network.
+5. Only the gateway's port `8080` is published. Postgres and orders-api are reachable only on the private Docker network. To browse the data, add `-f docker-compose.tools.yml`; it publishes Postgres on `127.0.0.1:5433` and pgAdmin on `127.0.0.1:5050`.
 
 ```
 postgres (healthy) ─► orders-api (migrate → healthy) ─┬─► gateway (:8080)
@@ -291,6 +297,8 @@ The default `appsettings.json` values already point at `localhost` (API on 5001,
 | One test class | `dotnet test --filter FullyQualifiedName~ConcurrencyTests` |
 | Add a DB migration | `dotnet ef migrations add <Name> -p src/Services/Orders/OrderProcessing.Orders.Infrastructure -o Persistence/Migrations` |
 | End-to-end | `docker compose up --build -d && ./scripts/smoke-test.sh` |
+| Browse the database | `docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d` → pgAdmin http://localhost:5050, or any SQL client on `localhost:5433` |
+| Test report like CI | `dotnet test --logger "trx;LogFileName=<project>.trx" --results-directory TestResults` per project, then `python3 scripts/test-summary.py TestResults/*.trx` |
 | Add a NuGet package | Add the version to `Directory.Packages.props`, then `<PackageReference Include="…" />` (no version) in the project |
 
 ---
@@ -305,6 +313,7 @@ The default `appsettings.json` values already point at `localhost` (API on 5001,
 6. Show the job: `docker compose logs -f status-worker` (start with `WORKER_INTERVAL_SECONDS=30` for the demo) → a new PENDING order becomes PROCESSING.
 7. `curl -X POST localhost:8080/internal/jobs/promote-pending` → `404` (internal endpoint not public).
 8. Run `./scripts/smoke-test.sh` → 23 PASS.
+9. Optional: show the latest green CI run on GitHub → **Summary** (test report by class, coverage, smoke test from a clean machine).
 
 ---
 
@@ -323,4 +332,5 @@ The default `appsettings.json` values already point at `localhost` (API on 5001,
 | Why Testcontainers instead of an in-memory DB? | Tests run against the same engine as production: bulk update, concurrency token, numeric precision. | [02-design](02-design.md) §6 |
 | How would you scale this? | Several orders-api replicas behind YARP (stateless); several workers are safe (idempotent); then a read replica, keyset paging, and events via an outbox. | [06-reflection](06-reflection.md) §5 |
 | What's missing for production? | Auth, idempotency keys on create, secrets management, tracing, rate limiting. | [06-reflection](06-reflection.md) §5 |
+| How do you know it works outside your machine? | GitHub Actions builds from a clean checkout, runs all tests (integration tests on a real Postgres), then starts the Docker stack and runs the smoke test, on every push. | [ci.yml](../.github/workflows/ci.yml), the CI badge in the README |
 | Which design patterns are used? | Aggregate, state machine, repository, optimistic concurrency, background service, API gateway, typed client + retry/circuit breaker, options, central exception handler, DI. | [README](../README.md#design-patterns-used) |

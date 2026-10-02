@@ -24,7 +24,7 @@ flowchart LR
 |---|---|---|---|---|
 | **1. Understand / plan** | Started in **plan mode** (read-only, no code changes allowed). Asked 3 multiple-choice scoping questions with a recommendation each. Listed ambiguities (missing CANCELLED status, job timing, money rules, the cancel-vs-job race) and acceptance criteria. Wrote an implementation plan. | **Approve a testable feature spec.** The developer answered the questions (.NET 8, 2 services + gateway, Swagger only) and **approved the plan** before any code was written. | Plan + acceptance criteria | [00-approved-plan.md](00-approved-plan.md) (the original plan), [01-planning.md](01-planning.md) |
 | **2. Design** | Compared options with trade-offs: shared DB vs API call, conditional update vs concurrency token vs locks, SQLite vs Testcontainers, YARP vs Nginx | **Choose an approach and trade-offs.** The service split was chosen by the developer; the remaining design choices were in the approved plan. | Architecture, data model, concurrency + test strategy | [02-design.md](02-design.md) |
-| **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** Mostly done by the AI on its own output; developer review of the code is still recommended (see §5). | Working code in 4 commits | [03-build.md](03-build.md) |
+| **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** Mostly done by the AI on its own output; developer review of the code is still recommended (see §6). | Working code in 4 commits | [03-build.md](03-build.md) |
 | **4. Test** | Proposed and wrote 136 tests (unit, integration on real Postgres, worker with a fake clock) plus a smoke script. Ran the real Docker stack, which exposed 2 bugs. **Deliberately broke the code** to prove the tests catch it. | **Run tests and verify findings.** The tests were run by the AI; the outputs are pasted in the evidence file. | Test matrix + real results | [04-testing.md](04-testing.md) |
 | **5. Review** | Ran a targeted AI code review (10 findings). **Reproduced each finding on the running stack before fixing it**, added regression tests, and rejected 1 finding with a reason. | **Verify each material finding.** Each verification command and its before/after result is recorded so it can be re-run. | 9 fixes, 1 rejection | [05-review.md](05-review.md) |
 | **6. Reflect** | Reconstructed decisions, rework and lessons from the git history and the stage logs | **Explain learning and next improvement.** **Must be written by the developer**; the AI version is a marked draft. | Draft reflection | [06-reflection.md](06-reflection.md) |
@@ -42,7 +42,8 @@ This section lists which files each phase produced, taken from the git history (
 | 3. Build | `996b13a` → `f2130d7` → `0bcf052` → `e8e0d95` | 4 services + shared library + Docker | Working system |
 | 4. Test | same 4 commits (tests written with each layer) | 3 test projects + smoke script | 126 tests + 24 E2E checks (136 tests after the review's regression tests) |
 | 5. Review | `d118b51` | 14 modified + 1 new migration | 9 verified fixes + regression tests |
-| 6. Reflect / document | `4de1c03`, `6c9cc4c` | README, `docs/`, CI, sample requests | SDLC evidence + walkthrough |
+| 6. Reflect / document | `4de1c03`, `6c9cc4c`, `8ae871c`, `a3330c7` | README, `docs/`, CI, sample requests | SDLC evidence + walkthrough |
+| 7. Publish and improve | `71cab66`, `dcf932b`, `fad5287`, then the documentation-audit commit | `.gitattributes`, DB tools, CI test report + coverage | Repo on GitHub, CI green, results visible on each run |
 
 ### Phase 1: Understand / plan (`bc542e3`)
 
@@ -76,7 +77,8 @@ docs/01-planning.md … docs/06-reflection.md
 - `src/BuildingBlocks/`, to share the correlation-id and logging code between the gateway and the API;
 - `Directory.Build.props`, `Directory.Packages.props` and `global.json`, for shared build settings and pinned versions;
 - `.config/dotnet-tools.json`, the EF migrations tool;
-- two extra docs: `technical-walkthrough.md` and this file.
+- two extra docs: `technical-walkthrough.md` and this file;
+- after publishing (Phase 7): `.gitattributes`, `docker-compose.tools.yml` + `tools/pgadmin/`, and `scripts/test-summary.py`.
 
 ### Phase 2: Design (part of `bc542e3`)
 
@@ -184,26 +186,42 @@ M  tests/OrderProcessing.Orders.UnitTests/Domain/OrderTests.cs                re
 M  tests/OrderProcessing.Orders.UnitTests/Application/ValidatorTests.cs       regression tests F2 F3
 ```
 
-### Phase 6: Reflect and document (`4de1c03`, `6c9cc4c`)
+### Phase 6: Reflect and document (`4de1c03`, `6c9cc4c`, `8ae871c`, `a3330c7`)
 
 ```
 A  README.md                              what it is, how to run, API, patterns, AI summary
 A  docs/01-planning.md … 06-reflection.md SDLC evidence, one file per stage
 A  docs/technical-walkthrough.md          how the code works
-A  docs/ai-sdlc-process.md                this file
+A  docs/ai-sdlc-process.md                this file (8ae871c added §3)
 A  .github/workflows/ci.yml               CI: build + tests, then compose + smoke test
 A  requests/orders.http                   sample requests for the demo
+M  README.md, docs/*                      links to the approved plan (a3330c7)
 ```
+
+### Phase 7: Publish and improve (after the repo went to GitHub)
+
+```
+A  .gitattributes                          71cab66  LF line endings everywhere (Windows Git had converted docs to CRLF)
+M  OrderProcessing.sln                     71cab66  line endings only
+A  docker-compose.tools.yml                dcf932b  optional: PostgreSQL on 127.0.0.1:5433 + pgAdmin on :5050
+A  tools/pgadmin/servers.json              dcf932b  pre-registers the database in pgAdmin
+M  .github/workflows/ci.yml                fad5287  per-project .trx files, merged coverage, smoke test in summary
+A  scripts/test-summary.py                 (audit)  test report on the run Summary page
+M  README.md, docs/*, .env.example         (audit)  documentation brought up to date after a full read-through
+```
+
+The issues behind these changes (line endings, file mode, a wrong-branch commit, the `{assembly}` placeholder, the silent reporter) are logged in [03-build.md](03-build.md) §2.
 
 ### Which phase created each top-level folder
 
 ```
 Order-Processing-System/
 ├── .config/                  Phase 3.2  (migrations tool)
-├── .github/workflows/        Phase 6    (CI)
+├── .github/workflows/        Phase 6 (CI), improved in Phase 7 (test report, coverage)
 ├── docs/                     Phase 1 (approved plan), Phase 6 (evidence + walkthrough)
 ├── requests/                 Phase 6    (demo requests)
-├── scripts/                  Phase 3.4 / 4  (smoke test)
+├── scripts/                  Phase 3.4 / 4 (smoke test), Phase 7 (test-summary.py)
+├── tools/pgadmin/            Phase 7    (database browsing)
 ├── src/
 │   ├── BuildingBlocks/       Phase 3.2
 │   ├── Gateway/              Phase 3.4
@@ -212,6 +230,8 @@ Order-Processing-System/
 │       └── StatusWorker/     Phase 3.3
 ├── tests/                    Phase 4, written in 3.1–3.3; extended in 5 (regression tests)
 ├── docker-compose.yml        Phase 3.4
+├── docker-compose.tools.yml  Phase 7
+├── .gitattributes            Phase 7
 └── *.props, global.json, *.sln   Phase 3.1
 ```
 
