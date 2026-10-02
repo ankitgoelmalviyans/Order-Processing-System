@@ -1,0 +1,16 @@
+# Keep LF line endings in the repository and in checkouts on every OS.
+# Shell scripts and Dockerfiles break with CRLF (e.g. "bash\r: No such file or directory"),
+# and mixed endings make diffs noisy.
+* text=auto eol=lf
+
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+
+# Windows-only tooling may keep CRLF
+*.sln       text eol=crlf
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+
+*.png       binary
+*.jpg       binary
