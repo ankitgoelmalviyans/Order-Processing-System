@@ -17,7 +17,10 @@ Then open **http://localhost:8080/swagger**.
 | List all orders, optionally filtered by status | `GET /api/orders?status=PENDING` (paged; can also filter by `customerId`) |
 | Cancel only while PENDING | `POST /api/orders/{id}/cancel` → `409` otherwise |
 
-The SDLC evidence for each stage (planning, design, build, testing, review, reflection), including how AI was used, is in [`docs/`](docs/). See [How AI was used](#how-ai-was-used) below.
+**Documentation map**
+- **How the code works** (folder structure, request flows, where each requirement lives, demo script, likely questions): [docs/technical-walkthrough.md](docs/technical-walkthrough.md)
+- **How AI was used across the SDLC**, and how the evidence files were planned and created: [docs/ai-sdlc-process.md](docs/ai-sdlc-process.md)
+- **How it was built**, one file per SDLC stage including how AI was used: [`docs/01-planning.md` … `06-reflection.md`](docs/). See [How AI was used](#how-ai-was-used).
 
 ---
 
@@ -60,16 +63,42 @@ Any other transition returns `409 Conflict`. CANCELLED isn't in the original sta
 
 ---
 
-## Running it
+## Running it locally
 
-**Prerequisite:** Docker with Compose v2. You don't need a .NET SDK to run the system.
+### Prerequisites
+
+| To… | You need |
+|---|---|
+| Run the system (Option A) | **Docker** with Compose v2 (Docker Desktop on Windows/macOS, or Docker Engine on Linux/WSL). No .NET SDK needed. |
+| Run the services from source, or run the tests (Option B) | **.NET 8 SDK** + Docker (for PostgreSQL and the integration tests) |
+| Run the smoke test | `bash` + `curl` (Linux, macOS, WSL or Git Bash on Windows) |
 
 ```bash
-docker compose up --build -d          # start postgres, orders-api, status-worker, gateway
-docker compose ps                     # gateway, orders-api and postgres show (healthy)
+git clone <repo-url> Order-Processing-System
+cd Order-Processing-System
+```
+
+### Option A: everything in Docker (recommended)
+
+```bash
+docker compose up --build -d          # build images, start postgres → orders-api → status-worker + gateway
+docker compose ps                     # wait until gateway, orders-api and postgres show (healthy), about 20 s
+```
+
+Then:
+
+| What | Where |
+|---|---|
+| Swagger UI (try every endpoint) | http://localhost:8080/swagger |
+| Health | http://localhost:8080/health |
+| Sample requests | [`requests/orders.http`](requests/orders.http) (VS Code REST Client, Rider, Visual Studio) |
+
+```bash
 ./scripts/smoke-test.sh               # 23 end-to-end checks through the gateway
 docker compose logs -f status-worker  # watch the background job
-docker compose down -v                # stop and delete data
+docker compose logs -f orders-api     # API logs (each line carries a correlation id)
+docker compose down                   # stop (keeps data)
+docker compose down -v                # stop and delete the database volume
 ```
 
 **Seeing the background job quickly.** The default interval is the required 5 minutes. For a demo, shorten it:
@@ -79,6 +108,47 @@ WORKER_INTERVAL_SECONDS=30 docker compose up --build -d
 WAIT_FOR_WORKER=1 ./scripts/smoke-test.sh   # also waits until a PENDING order becomes PROCESSING
 ```
 
+On Windows PowerShell, set the variable first (`$env:WORKER_INTERVAL_SECONDS=30; docker compose up --build -d`), or copy `.env.example` to `.env` and edit it. That works the same on every OS.
+
+### Option B: run the services from source (for development and debugging)
+
+Start only PostgreSQL in Docker, then run each service with the .NET SDK, each in its own terminal (or from Visual Studio / Rider):
+
+```bash
+docker run -d --name orders-db -p 5432:5432 \
+  -e POSTGRES_DB=orders -e POSTGRES_USER=orders -e POSTGRES_PASSWORD=orders_dev_password \
+  postgres:16-alpine
+
+dotnet run --project src/Services/Orders/OrderProcessing.Orders.Api          # http://localhost:5001/swagger (creates tables on start)
+dotnet run --project src/Gateway/OrderProcessing.Gateway                     # http://localhost:8080/swagger
+dotnet run --project src/Services/StatusWorker/OrderProcessing.StatusWorker -- --Worker:IntervalSeconds=30
+```
+
+No configuration is needed: the default `appsettings.json` files already point at `localhost` (database 5432, API 5001, gateway 8080). When finished: `docker rm -f orders-db`.
+
+### Running the tests
+
+```bash
+dotnet test                                              # all 136 tests; Docker must be running
+dotnet test tests/OrderProcessing.Orders.UnitTests       # unit tests only, no Docker needed
+dotnet test --filter FullyQualifiedName~ConcurrencyTests # a single test class
+```
+
+The integration tests start their own throwaway PostgreSQL container (Testcontainers), so you don't need to start a database for them.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `port is already allocated` on 8080 | Another app uses it. Run `GATEWAY_PORT=8090 docker compose up -d` and open `http://localhost:8090/swagger` |
+| Option B: port 5432 already in use | A local PostgreSQL is running. Stop it, or map `-p 5433:5432` and run the API with `--ConnectionStrings:OrdersDb="Host=localhost;Port=5433;Database=orders;Username=orders;Password=orders_dev_password"` |
+| `orders-api` never becomes healthy | `docker compose logs orders-api`. Usually the database isn't ready yet (it retries) or the password differs from an old volume (`docker compose down -v`). |
+| `./scripts/smoke-test.sh: Permission denied` | `chmod +x scripts/smoke-test.sh`, or run `bash scripts/smoke-test.sh` |
+| `dotnet test` fails with Docker errors | Start Docker Desktop / the Docker daemon; the integration tests need it |
+| Order stays PENDING | Expected for up to 5 minutes. Use `WORKER_INTERVAL_SECONDS=30` for demos. |
+
+### Configuration
+
 | Setting (env var, or `.env`; see `.env.example`) | Default | Meaning |
 |---|---|---|
 | `WORKER_INTERVAL_SECONDS` | `300` | How often PENDING orders are promoted |
@@ -86,8 +156,6 @@ WAIT_FOR_WORKER=1 ./scripts/smoke-test.sh   # also waits until a PENDING order b
 | `MIN_PENDING_AGE_SECONDS` | `0` | Only promote orders at least this old. Gives customers a guaranteed cancellation window. |
 | `GATEWAY_PORT` | `8080` | Host port for the gateway |
 | `POSTGRES_PASSWORD` | `orders_dev_password` | Database password (development only) |
-
-Sample requests are in [`requests/orders.http`](requests/orders.http) (VS Code REST Client, Rider or Visual Studio).
 
 ---
 
