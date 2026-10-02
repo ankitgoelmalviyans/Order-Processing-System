@@ -27,7 +27,7 @@ flowchart LR
 | **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** Mostly done by the AI on its own output; developer review of the code is still recommended (see §6). | Working code in 4 commits | [03-build.md](03-build.md) |
 | **4. Test** | Proposed and wrote 136 tests (unit, integration on real Postgres, worker with a fake clock) plus a smoke script. Ran the real Docker stack, which exposed 2 bugs. **Deliberately broke the code** to prove the tests catch it. | **Run tests and verify findings.** The tests were run by the AI; the outputs are pasted in the evidence file. | Test matrix + real results | [04-testing.md](04-testing.md) |
 | **5. Review** | Ran a targeted AI code review (10 findings). **Reproduced each finding on the running stack before fixing it**, added regression tests, and rejected 1 finding with a reason. | **Verify each material finding.** Each verification command and its before/after result is recorded so it can be re-run. | 9 fixes, 1 rejection | [05-review.md](05-review.md) |
-| **6. Reflect** | Reconstructed decisions, rework and lessons from the git history and the stage logs | **Explain learning and next improvement.** Drafted by AI from the decisions, history and the developer's own test results; **reviewed and adjusted by the developer**. | Reflection | [06-reflection.md](06-reflection.md) |
+| **6. Reflect** | Drafted the decisions, lessons and next steps from the git history and the stage logs | **Explain learning and next improvement.** Drafted by AI from the decisions, history and the developer's own test results; **reviewed and adjusted by the developer**. | Reflection | [06-reflection.md](06-reflection.md) |
 
 ## 3. Files created in each phase
 
@@ -258,7 +258,7 @@ The plan therefore fixed the same layout for every file:
 | 03-build | Build sequence by commit, environment problems, issues found in AI-generated code and how each was corrected |
 | 04-testing | Test pyramid, normal / invalid / edge-case matrix, real command output, mutation checks, bugs found by testing |
 | 05-review | How the review was run, each finding with how it was verified, the before/after result and the decision, security notes |
-| 06-reflection | Human decisions, where AI helped, where AI was wrong, rework, next improvements |
+| 06-reflection | Human decisions and why, how AI was used, what was surprising, next improvements. No AI log of its own: the AI mistakes and rework are logged in 03-build and 05-review. |
 
 **What counts as "important":** an interaction gets a log row if it changed the design, if the AI output was wrong or modified, or if a decision needs defending in the walkthrough. Routine generation that was accepted unchanged and passed its tests isn't logged line by line.
 

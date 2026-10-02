@@ -330,7 +330,7 @@ The default `appsettings.json` values already point at `localhost` (API on 5001,
 | Where are the business rules? | Only in the Domain. `OrderStatusTransitions` is the single state-machine table. | §2 Domain |
 | How is validation done? | FluentValidation in Application (detailed 400s), plus domain invariants as a second line of defence. | `Validators.cs`, `Order.Create` |
 | Why Testcontainers instead of an in-memory DB? | Tests run against the same engine as production: bulk update, concurrency token, numeric precision. | [02-design](02-design.md) §6 |
-| How would you scale this? | Several orders-api replicas behind YARP (stateless); several workers are safe (idempotent); then a read replica, keyset paging, and events via an outbox. | [06-reflection](06-reflection.md) §5 |
-| What's missing for production? | Auth, idempotency keys on create, secrets management, tracing, rate limiting. | [06-reflection](06-reflection.md) §5 |
+| How would you scale this? | Several orders-api replicas behind YARP (stateless); several workers are safe (idempotent); then a read replica, keyset paging, and events via an outbox. | [06-reflection](06-reflection.md) §4 |
+| What's missing for production? | Auth, idempotency keys on create, secrets management, tracing, rate limiting. | [06-reflection](06-reflection.md) §4 |
 | How do you know it works outside your machine? | GitHub Actions builds from a clean checkout, runs all tests (integration tests on a real Postgres), then starts the Docker stack and runs the smoke test, on every push. | [ci.yml](../.github/workflows/ci.yml), the CI badge in the README |
 | Which design patterns are used? | Aggregate, state machine, repository, optimistic concurrency, background service, API gateway, typed client + retry/circuit breaker, options, central exception handler, DI. | [README](../README.md#design-patterns-used) |

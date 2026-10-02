@@ -311,7 +311,7 @@ AI (Claude Code, in VS Code) was used at every SDLC stage, as the slides describ
 | 3. Build | [03-build.md](docs/03-build.md) | AI output inspected; issues caught before and after running |
 | 4. Test | [04-testing.md](docs/04-testing.md) | Test matrix, mutation checks proving the tests can fail, smoke-test bugs |
 | 5. Review | [05-review.md](docs/05-review.md) | 10 AI review findings: 9 verified and fixed (6 reproduced live first), 1 rejected with a reason |
-| 6. Reflect | [06-reflection.md](docs/06-reflection.md) | Decisions, rework and lessons |
+| 6. Reflect | [06-reflection.md](docs/06-reflection.md) | Decisions and why, how AI was used, what was surprising, next steps |
 
 Notable issues AI introduced or missed, and how each was corrected:
 - **First-pass logging fix was too broad.** It silenced a whole framework log category, which would have hidden real errors. The AI review caught it and it was replaced with a targeted filter.
