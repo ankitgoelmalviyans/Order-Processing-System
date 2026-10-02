@@ -25,6 +25,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderProcessing.Orders.Api"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderProcessing.Orders.IntegrationTests", "tests\OrderProcessing.Orders.IntegrationTests\OrderProcessing.Orders.IntegrationTests.csproj", "{22996841-4ABD-4F17-B4F4-A982377C2990}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StatusWorker", "StatusWorker", "{9F0B3184-98CE-4631-938B-0497CFF99F57}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderProcessing.StatusWorker", "src\Services\StatusWorker\OrderProcessing.StatusWorker\OrderProcessing.StatusWorker.csproj", "{081E244E-B375-4FB8-BC43-41BA882B0897}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderProcessing.StatusWorker.UnitTests", "tests\OrderProcessing.StatusWorker.UnitTests\OrderProcessing.StatusWorker.UnitTests.csproj", "{8F961047-5448-4000-8E17-14261E4F02F3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,6 +68,14 @@ Global
 		{22996841-4ABD-4F17-B4F4-A982377C2990}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22996841-4ABD-4F17-B4F4-A982377C2990}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22996841-4ABD-4F17-B4F4-A982377C2990}.Release|Any CPU.Build.0 = Release|Any CPU
+		{081E244E-B375-4FB8-BC43-41BA882B0897}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{081E244E-B375-4FB8-BC43-41BA882B0897}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{081E244E-B375-4FB8-BC43-41BA882B0897}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{081E244E-B375-4FB8-BC43-41BA882B0897}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F961047-5448-4000-8E17-14261E4F02F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F961047-5448-4000-8E17-14261E4F02F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F961047-5448-4000-8E17-14261E4F02F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F961047-5448-4000-8E17-14261E4F02F3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{5A149092-50C7-4BC1-A4C7-0417721FA1B5} = {DE87A980-6E8F-4F83-8062-F859631DC5DD}
@@ -73,5 +87,8 @@ Global
 		{7D9DFB3A-EA84-4726-99BC-5FE519B30F87} = {E5B29FC1-EF6A-45FE-8832-B2DA5728F4DD}
 		{7D6AFB89-AD6B-462D-B50B-335ABC74374D} = {5A149092-50C7-4BC1-A4C7-0417721FA1B5}
 		{22996841-4ABD-4F17-B4F4-A982377C2990} = {4015A44B-EC06-4ED7-A97F-DBCB9C6044F7}
+		{9F0B3184-98CE-4631-938B-0497CFF99F57} = {DE87A980-6E8F-4F83-8062-F859631DC5DD}
+		{081E244E-B375-4FB8-BC43-41BA882B0897} = {9F0B3184-98CE-4631-938B-0497CFF99F57}
+		{8F961047-5448-4000-8E17-14261E4F02F3} = {4015A44B-EC06-4ED7-A97F-DBCB9C6044F7}
 	EndGlobalSection
 EndGlobal

@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Services\Orders\OrderProcessing.Orders.Application\OrderProcessing.Orders.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\StatusWorker\OrderProcessing.StatusWorker\OrderProcessing.StatusWorker.csproj" />
   </ItemGroup>
 
 </Project>
