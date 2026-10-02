@@ -1,0 +1,59 @@
+### Order Processing System — sample requests
+### Works with the VS Code "REST Client" extension, JetBrains Rider and Visual Studio.
+### Start the stack first:  docker compose up --build -d
+
+@baseUrl = http://localhost:8080
+
+### Health (gateway)
+GET {{baseUrl}}/health
+
+### Create an order with multiple items
+# @name createOrder
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "customerId": "cust-1001",
+  "items": [
+    { "productId": "SKU-KEYBOARD", "productName": "Mechanical keyboard", "quantity": 1, "unitPrice": 89.99 },
+    { "productId": "SKU-MOUSE", "productName": "Wireless mouse", "quantity": 2, "unitPrice": 24.50 }
+  ]
+}
+
+@orderId = {{createOrder.response.body.$.id}}
+
+### Get the order by id
+GET {{baseUrl}}/api/orders/{{orderId}}
+
+### List all orders (newest first, paged)
+GET {{baseUrl}}/api/orders?page=1&pageSize=20
+
+### List orders filtered by status
+GET {{baseUrl}}/api/orders?status=PENDING
+
+### List a customer's orders filtered by status
+GET {{baseUrl}}/api/orders?customerId=cust-1001&status=PROCESSING
+
+### Cancel (only allowed while PENDING)
+POST {{baseUrl}}/api/orders/{{orderId}}/cancel
+
+### Move to the next status: PENDING -> PROCESSING -> SHIPPED -> DELIVERED
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{ "status": "PROCESSING" }
+
+### Illegal transition (e.g. PENDING -> DELIVERED) returns 409
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{ "status": "DELIVERED" }
+
+### Validation error: no items -> 400
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{ "customerId": "cust-1001", "items": [] }
+
+### Internal job endpoint is NOT exposed through the gateway -> 404
+POST {{baseUrl}}/internal/jobs/promote-pending
