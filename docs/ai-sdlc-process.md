@@ -27,7 +27,7 @@ flowchart LR
 | **3. Build** | Implemented inside out (domain → application → infrastructure → API → worker → gateway → Docker). Built and tested after each layer and committed working steps. Inspected its own output and corrected issues before running (e.g. the `{}` body binding to PENDING). | **Inspect and adjust the changes.** Mostly done by the AI on its own output; developer review of the code is still recommended (see §6). | Working code in 4 commits | [03-build.md](03-build.md) |
 | **4. Test** | Proposed and wrote 136 tests (unit, integration on real Postgres, worker with a fake clock) plus a smoke script. Ran the real Docker stack, which exposed 2 bugs. **Deliberately broke the code** to prove the tests catch it. | **Run tests and verify findings.** The tests were run by the AI; the outputs are pasted in the evidence file. | Test matrix + real results | [04-testing.md](04-testing.md) |
 | **5. Review** | Ran a targeted AI code review (10 findings). **Reproduced each finding on the running stack before fixing it**, added regression tests, and rejected 1 finding with a reason. | **Verify each material finding.** Each verification command and its before/after result is recorded so it can be re-run. | 9 fixes, 1 rejection | [05-review.md](05-review.md) |
-| **6. Reflect** | Reconstructed decisions, rework and lessons from the git history and the stage logs | **Explain learning and next improvement.** **Must be written by the developer**; the AI version is a marked draft. | Draft reflection | [06-reflection.md](06-reflection.md) |
+| **6. Reflect** | Reconstructed decisions, rework and lessons from the git history and the stage logs | **Explain learning and next improvement.** Drafted by AI from the decisions, history and the developer's own test results; **reviewed and adjusted by the developer**. | Reflection | [06-reflection.md](06-reflection.md) |
 
 ## 3. Files created in each phase
 
@@ -278,13 +278,13 @@ To be precise about timing:
 | AI output is a draft until verified | All 10 review findings checked first; 6 reproduced live; 1 rejected |
 | Prove the tests can fail | Two deliberate code breaks, both caught |
 | Record real issues only, including AI's own mistakes | Greedy regex in the AI-written smoke script; a too-broad logging fix; a verification grep that could never match |
-| The developer owns the decisions and the reflection | Scope chosen by the developer; 06-reflection is marked for rewriting in the developer's own words |
+| The developer owns the decisions and the reflection | Scope chosen by the developer; 06-reflection reviewed and adjusted by the developer |
 
 **Still open for the developer** (to make the checkpoint column fully true):
 - [x] Run `dotnet test` and `./scripts/smoke-test.sh` yourself: 136 tests passed (8 + 86 + 42), smoke test 23/23
 - [x] Check at least two review findings yourself: F2 `page=2147483647` → **400** (was 500); F9 items returned as **A1 B2 C3 D4** (was C3 A1 B2 D4)
 - [ ] Read `Order.cs`, `OrderStatusTransitions.cs`, `OrderRepository.cs` and `PendingOrderPromotionWorker.cs`, and be able to explain them
-- [ ] Rewrite 06-reflection in your own words
+- [ ] Review 06-reflection and adjust anything that doesn't match your own view
 
 ## 7. Applying the process to the next feature
 
